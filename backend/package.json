@@ -1,10 +1,12 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/server.js",
   
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "migrate": "tsx src/db/migrate.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
