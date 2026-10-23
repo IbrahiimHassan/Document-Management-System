@@ -4,6 +4,7 @@ import { pool } from "./config/database.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
+import documentRoutes from "./routes/documentRoutes.js";
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.get("/api/health", async (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/documents", documentRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

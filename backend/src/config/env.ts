@@ -14,9 +14,12 @@ const envSchema = z.object({
     .default(3001),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-   JWT_SECRET: z
-    .string()
-    .min(32, "JWT_SECRET must be at least 32 characters"),
+
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+
+  UPLOAD_DIR: z.string().min(1).default("uploads"),
+
+  MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 const result = envSchema.safeParse(process.env);

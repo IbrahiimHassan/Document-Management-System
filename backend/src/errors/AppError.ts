@@ -32,3 +32,15 @@ export class NotFoundError extends AppError {
     super(404, "NOT_FOUND", message);
   }
 }
+
+export class PayloadTooLargeError extends AppError {
+  constructor(message = "File is too large") {
+    super(413, "FILE_TOO_LARGE", message);
+  }
+}
+
+export class UnsupportedMediaTypeError extends AppError {
+  constructor(message = "File type is not allowed") {
+    super(415, "UNSUPPORTED_FILE_TYPE", message);
+  }
+}
