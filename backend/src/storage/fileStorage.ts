@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import {access, mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { uploadDir } from "../config/upload.js";
 
@@ -23,4 +23,13 @@ export async function deleteFile(storageKey: string): Promise<void> {
 
 export function openFile(storageKey: string) {
   return createReadStream(path.join(uploadDir, path.basename(storageKey)));
+}
+
+export async function fileExists(storageKey: string): Promise<boolean> {
+  try {
+    await access(path.join(uploadDir, path.basename(storageKey)));
+    return true;
+  } catch {
+    return false;
+  }
 }

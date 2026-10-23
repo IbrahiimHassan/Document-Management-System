@@ -5,6 +5,8 @@ import type { UploadedFileInfo } from "../middleware/upload.js";
 import type { CreateDocumentInput } from "../schemas/documentSchemas.js";
 import type { PublicUser } from "./authService.js";
 import * as accessService from "./accessService.js";
+import type { ListDocumentsQuery } from "../schemas/documentSchemas.js";
+import { NotFoundError } from "../errors/AppError.js";
 
 export async function createDocument(
   user: PublicUser,
@@ -62,4 +64,56 @@ export async function addVersion(
     await fileStorage.deleteFile(storageKey);
     throw error;
   }
+}
+
+export async function listDocuments(user: PublicUser, query: ListDocumentsQuery) {
+  const { items, total } = await documentRepository.search(user, {
+    q: query.q,
+    tags: query.tags,
+    uploader: query.uploader,
+    limit: query.limit,
+    offset: (query.page - 1) * query.limit,
+  });
+
+  return {
+    items,
+    page: query.page,
+    limit: query.limit,
+    total,
+    totalPages: Math.ceil(total / query.limit),
+  };
+}
+
+export async function getDocument(user: PublicUser, documentId: string) {
+  await accessService.requireViewAccess(user, documentId);
+  const detail = await documentRepository.findDetail(documentId);
+  if (!detail) {
+    throw new NotFoundError("Document not found");
+  }
+  return detail;
+}
+
+export async function getVersions(user: PublicUser, documentId: string) {
+  await accessService.requireViewAccess(user, documentId);
+  return documentRepository.listVersions(documentId);
+}
+
+export async function getDownload(
+  user: PublicUser,
+  documentId: string,
+  versionNumber?: number,
+) {
+  await accessService.requireViewAccess(user, documentId);
+
+  const info = await documentRepository.findDownloadInfo(documentId, versionNumber);
+  if (!info) {
+    throw new NotFoundError("Version not found");
+  }
+
+  if (!(await fileStorage.fileExists(info.storageKey))) {
+    console.error(`File missing on disk for storage key ${info.storageKey}`);
+    throw new NotFoundError("The file for this version is no longer available");
+  }
+
+  return { ...info, stream: fileStorage.openFile(info.storageKey) };
 }
