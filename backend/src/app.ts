@@ -1,6 +1,8 @@
 
 import express from "express";
+import helmet from "helmet";
 import { pool } from "./config/database.js";
+import * as cache from "./cache/cache.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
@@ -9,6 +11,10 @@ import departmentRoutes from "./routes/departmentRoutes.js";
 
 const app = express();
 
+// Don't advertise "Express" in every response
+app.disable("x-powered-by");
+// Security headers (nosniff, frame-ancestors, HSTS, ...)
+app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 
@@ -20,6 +26,8 @@ app.get("/api/health", async (_req, res) => {
       status: "ok",
       service: "document-repository-api",
       database: "connected",
+      // Informational only: the API works without the cache
+      cache: cache.status(),
     });
   } catch (error) {
     console.error("Health check database query failed:", error);
@@ -28,6 +36,7 @@ app.get("/api/health", async (_req, res) => {
       status: "error",
       service: "document-repository-api",
       database: "unavailable",
+      cache: cache.status(),
     });
   }
 });

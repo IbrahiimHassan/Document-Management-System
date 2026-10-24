@@ -441,36 +441,37 @@ export async function listVersions(documentId: string): Promise<VersionRecord[]>
 }
 
 export interface DownloadInfo {
+  versionNumber: number;
   storageKey: string;
   originalName: string;
   mimeType: string;
   sizeBytes: number;
 }
 
-// versionNumber omitted -> the current (highest) version
-export async function findDownloadInfo(
+// The current (highest) version, the only one that may be downloaded
+export async function findCurrentDownloadInfo(
   documentId: string,
-  versionNumber?: number,
 ): Promise<DownloadInfo | null> {
   const result = await pool.query<{
+    version_number: number;
     storage_key: string;
     original_name: string;
     mime_type: string;
     size_bytes: string;
   }>(
-    `SELECT storage_key, original_name, mime_type, size_bytes
+    `SELECT version_number, storage_key, original_name, mime_type, size_bytes
      FROM document_versions
      WHERE document_id = $1
-       AND ($2::int IS NULL OR version_number = $2::int)
      ORDER BY version_number DESC
      LIMIT 1`,
-    [documentId, versionNumber ?? null],
+    [documentId],
   );
 
   const row = result.rows[0];
   if (!row) return null;
 
   return {
+    versionNumber: row.version_number,
     storageKey: row.storage_key,
     originalName: row.original_name,
     mimeType: row.mime_type,

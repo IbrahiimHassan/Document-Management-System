@@ -20,6 +20,17 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().min(1).default("uploads"),
 
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(100).default(10),
+
+  // Secure cookies need HTTPS. Defaults to on in production; set to "false"
+  // only when production runs on plain http (like the local Docker setup).
+  COOKIE_SECURE: z.enum(["true", "false"]).optional(),
+
+  // Optional: without it the app runs with caching turned off
+  REDIS_URL: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value : undefined))
+    .pipe(z.url("REDIS_URL must be a URL like redis://localhost:6379").optional()),
 });
 
 const result = envSchema.safeParse(process.env);

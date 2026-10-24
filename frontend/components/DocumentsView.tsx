@@ -190,7 +190,11 @@ export function DocumentsView() {
             </label>
           </div>
 
-          <ul className="space-y-3">
+          {/* Old results stay visible but fade while the next search loads */}
+          <ul
+            aria-busy={loading}
+            className={`space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}
+          >
             {data.items.map((doc) => (
               <li key={doc.id}>
                 <DocumentCard doc={doc} />

@@ -2,11 +2,15 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { pool } from "./config/database.js";
+import * as cache from "./cache/cache.js";
 
 async function bootstrap(): Promise<void> {
   try {
     await pool.query("SELECT 1");
     console.log("Database connected successfully");
+
+    await cache.ready();
+    console.log(`Cache: ${cache.status()}`);
 
     const server = app.listen(env.PORT, () => {
       console.log(
@@ -30,6 +34,7 @@ async function bootstrap(): Promise<void> {
           }
 
           await pool.end();
+          await cache.close();
         } catch (shutdownError) {
           console.error("Database pool shutdown failed:", shutdownError);
           process.exitCode = 1;

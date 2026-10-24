@@ -88,6 +88,20 @@ export async function getVersions(req: Request, res: Response): Promise<void> {
   res.status(200).json({ items: versions });
 }
 
+export async function getAuditLog(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    throw new UnauthorizedError();
+  }
+
+  const parsedId = documentIdSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    throw new ValidationError("Invalid document id");
+  }
+
+  const events = await documentService.getAuditLog(req.user, parsedId.data);
+  res.status(200).json({ items: events });
+}
+
 const downloadQuerySchema = z.object({
   version: z.coerce.number().int("version must be a whole number").min(1, "version must be at least 1").optional(),
 });

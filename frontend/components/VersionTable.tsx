@@ -1,17 +1,14 @@
-import { Download } from "lucide-react";
-import { downloadUrl } from "@/lib/api";
 import { formatDateTime, formatSize } from "@/lib/format";
 import type { VersionRecord } from "@/lib/types";
 
 interface VersionTableProps {
-  documentId: string;
   versions: VersionRecord[];
 }
 
 const head = "whitespace-nowrap px-3 py-3 align-middle";
 const cell = "whitespace-nowrap px-3 py-3 align-middle";
 
-export function VersionTable({ documentId, versions }: VersionTableProps) {
+export function VersionTable({ versions }: VersionTableProps) {
   const currentNumber = versions[0]?.versionNumber;
 
   return (
@@ -24,7 +21,6 @@ export function VersionTable({ documentId, versions }: VersionTableProps) {
             <th scope="col" className={`${head} text-center`}>Uploaded by</th>
             <th scope="col" className={`${head} text-center`}>Size</th>
             <th scope="col" className={`${head} text-center`}>Date</th>
-            <th scope="col" className={`${head} text-center`}>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -44,22 +40,6 @@ export function VersionTable({ documentId, versions }: VersionTableProps) {
               <td className={`${cell} text-center text-muted`}>{version.uploadedByName}</td>
               <td className={`${cell} text-center text-muted`}>{formatSize(version.sizeBytes)}</td>
               <td className={`${cell} text-center text-muted`}>{formatDateTime(version.createdAt)}</td>
-                           <td className={`${cell} text-center`}>
-                {version.versionNumber === currentNumber ? (
-                  <a
-                    href={downloadUrl(documentId, version.versionNumber)}
-                    aria-label={`Download version ${version.versionNumber}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-brand-soft"
-                  >
-                    <Download className="size-3.5" aria-hidden="true" />
-                    Download
-                  </a>
-                ) : (
-                  <span className="text-muted" aria-label="Older version, not downloadable">
-            
-                  </span>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>

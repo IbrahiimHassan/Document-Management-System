@@ -143,7 +143,7 @@ export function DocumentDetailView() {
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="min-w-0 rounded-xl border border-line bg-surface">
           <h2 className="border-b border-line px-4 py-3 font-semibold">Version history</h2>
-          <VersionTable documentId={doc.id} versions={versions} />
+          <VersionTable versions={versions} />
         </section>
 
         <aside className="space-y-5 rounded-xl border border-line bg-surface p-4">

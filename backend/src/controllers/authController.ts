@@ -6,6 +6,10 @@ import * as authService from "../services/authService.js";
 
 export const AUTH_COOKIE = "token";
 
+const secureCookie = env.COOKIE_SECURE
+  ? env.COOKIE_SECURE === "true"
+  : env.NODE_ENV === "production";
+
 export async function login(req: Request, res: Response): Promise<void> {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -22,7 +26,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   res.cookie(AUTH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: env.NODE_ENV === "production",
+    secure: secureCookie,
     maxAge: authService.TOKEN_MAX_AGE_MS,
   });
 

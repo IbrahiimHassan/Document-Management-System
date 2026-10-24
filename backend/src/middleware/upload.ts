@@ -27,6 +27,8 @@ declare global {
 const multerUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: maxUploadBytes, files: 1 },
+  // Browsers send file names as UTF-8. The default (latin1) garbles Arabic names.
+  defParamCharset: "utf8",
 }).single("file");
 
 export function uploadFile(req: Request, res: Response, next: NextFunction): void {

@@ -53,6 +53,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (response.status === 401 && redirectOn401 && typeof window !== "undefined") {
+    // A full reload on purpose: it drops all client state of the expired session.
+    // This helper is not a component, so useRouter() is not available here anyway.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/login");
   }
 
@@ -116,10 +119,10 @@ export function addVersion(id: string, form: FormData): Promise<CreatedVersion> 
   return request(`/documents/${encodeURIComponent(id)}/versions`, { method: "POST", form });
 }
 
-// A plain link: the browser sends the cookie and downloads the file itself
-export function downloadUrl(id: string, version?: number): string {
-  const base = `/api/documents/${encodeURIComponent(id)}/download`;
-  return version ? `${base}?version=${version}` : base;
+// A plain link: the browser sends the cookie and downloads the file itself.
+// Only the current version can be downloaded, so there is no version option.
+export function downloadUrl(id: string): string {
+  return `/api/documents/${encodeURIComponent(id)}/download`;
 }
 
 export async function listDepartments(): Promise<Department[]> {

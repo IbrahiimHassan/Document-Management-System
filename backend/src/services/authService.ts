@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { UnauthorizedError } from "../errors/AppError.js";
 import * as userRepository from "../repositories/userRepository.js";
+const DUMMY_HASH = bcrypt.hashSync("dummy-password-for-timing", 10);
 
 export const TOKEN_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
@@ -12,6 +13,7 @@ export interface PublicUser {
   email: string;
   role: "admin" | "manager" | "employee";
   departmentId: string;
+  departmentName: string;
 }
 
 export function toPublicUser(user: userRepository.UserRecord): PublicUser {
@@ -21,6 +23,7 @@ export function toPublicUser(user: userRepository.UserRecord): PublicUser {
     email: user.email,
     role: user.role,
     departmentId: user.departmentId,
+    departmentName: user.departmentName,
   };
 }
 
@@ -28,9 +31,10 @@ export async function login(email: string, password: string) {
   const user = await userRepository.findByEmail(email);
 
   // Same error for "no such email" and "wrong password"
-  const passwordMatches = user
-    ? await bcrypt.compare(password, user.passwordHash)
-    : false;
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user?.passwordHash ?? DUMMY_HASH,
+  );
 
   if (!user || !passwordMatches) {
     throw new UnauthorizedError("Invalid email or password");
