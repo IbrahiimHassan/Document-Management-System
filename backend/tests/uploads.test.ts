@@ -395,8 +395,13 @@ describe("a failed database write leaves no orphan file", () => {
     const documentId = res.body.documentId;
     await breakVersionInserts();
 
+    // A different file: an identical one would be refused (409) before reaching the database
     await expectRejectedWithoutFile(
-      () => uploadTo(agents.finance, `/api/documents/${documentId}/versions`),
+      () =>
+        uploadTo(agents.finance, `/api/documents/${documentId}/versions`, {}, {
+          buffer: pdfBytes("survivor v2"),
+          name: "file.pdf",
+        }),
       500,
       "INTERNAL_ERROR",
     );

@@ -7,6 +7,7 @@ import { readdir, rm } from "node:fs/promises";
 import { uploadDir } from "../src/config/upload.js";
 import * as cache from "../src/cache/cache.js";
 import * as searchCache from "../src/cache/searchCache.js";
+import { makePdf } from "../src/files/sampleFiles.js";
 
 export const PASSWORD = "password123";
 
@@ -124,9 +125,10 @@ export async function insertDocument(input: {
 
 type Agent = Awaited<ReturnType<typeof loginAs>>;
 
-// The smallest bytes file-type recognises as a PDF. The label makes each checksum unique.
-export function pdfBytes(label = "test"): Buffer {
-  return Buffer.from(`%PDF-1.4\n% ${label}\n%%EOF\n`);
+// A small real PDF whose text is the label (plus any paragraphs).
+// The label also makes each checksum unique.
+export function pdfBytes(label = "test", paragraphs: string[] = []): Buffer {
+  return makePdf(label, paragraphs);
 }
 
 // Sends a multipart upload the way the browser form does

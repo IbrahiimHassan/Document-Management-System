@@ -1,5 +1,9 @@
 import { UploadForm } from "@/components/UploadForm";
 
+// Same opt-out as the other pages behind the login: they render on the client
+// after the session check, so there is no static shell to validate
+export const instant = false;
+
 export default function UploadPage() {
   return (
     <div>

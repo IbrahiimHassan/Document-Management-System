@@ -26,6 +26,6 @@ USER node
 
 EXPOSE 3001
 
-# Apply migrations, optionally add the demo users, then start the API.
+# Apply migrations, optionally add the demo users and documents, then start the API.
 # exec hands the process over to node so it receives Docker's stop signal.
 CMD ["sh", "-c", "node dist/db/migrate.js && if [ \"$SEED_DEMO_DATA\" = \"true\" ]; then node dist/db/seed.js; fi && exec node dist/server.js"]

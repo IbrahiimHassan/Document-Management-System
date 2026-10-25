@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Globe, Loader2, Lock, UploadCloud, X } from "lucide-react";
-import { createDocument, listDepartments } from "@/lib/api";
+import { Copy, FileText, Loader2, UploadCloud, X } from "lucide-react";
+import { createDocument, findDuplicates } from "@/lib/api";
 import { formatSize } from "@/lib/format";
-import type { Department } from "@/lib/types";
+import type { DuplicateMatch } from "@/lib/types";
+import { useDepartments } from "@/lib/useDepartments";
 import { Button } from "./Button";
+import { VisibilityPicker } from "./VisibilityPicker";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = [".pdf", ".docx", ".xlsx"];
@@ -19,6 +22,14 @@ function checkFile(file: File): string | null {
   if (file.size === 0) return "That file is empty.";
   if (file.size > MAX_BYTES) return `That file is ${formatSize(file.size)}. The limit is 10 MB.`;
   return null;
+}
+
+// SHA-256 of the file, computed in the browser. null where the browser can't
+// (Web Crypto needs https or localhost); the duplicate check is then skipped.
+async function sha256(file: File): Promise<string | null> {
+  if (typeof crypto === "undefined" || !crypto.subtle) return null;
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 interface FieldErrors {
@@ -37,37 +48,44 @@ export function UploadForm() {
   const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<"public" | "restricted">("public");
   const [departmentIds, setDepartmentIds] = useState<string[]>([]);
-  const [departments, setDepartments] = useState<Department[] | null>(null);
-  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  const { departments, error: departmentsError } = useDepartments();
+  // Documents you can see that already have this exact file
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    listDepartments()
-      .then((items) => {
-        if (active) setDepartments(items);
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          setDepartmentsError(err instanceof Error ? err.message : "Could not load departments.");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // The file being checked, so a slow check for an earlier file can't show its result
+  const checking = useRef<File | null>(null);
+
+  async function checkDuplicates(picked: File) {
+    checking.current = picked;
+    setDuplicates([]);
+    try {
+      const checksum = await sha256(picked);
+      if (!checksum) return;
+      const matches = await findDuplicates(checksum);
+      if (checking.current === picked) setDuplicates(matches);
+    } catch {
+      // Only a hint: never block the upload because the check failed
+    }
+  }
 
   function pickFile(picked: File | undefined) {
     if (!picked) return;
     const problem = checkFile(picked);
     setErrors((e) => ({ ...e, file: problem ?? undefined }));
     setFile(problem ? null : picked);
-    if (!problem && !title.trim()) {
+    if (problem) {
+      checking.current = null;
+      setDuplicates([]);
+      return;
+    }
+    if (!title.trim()) {
       setTitle(picked.name.replace(/\.[^.]+$/, ""));
     }
+    void checkDuplicates(picked);
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -115,84 +133,111 @@ export function UploadForm() {
   const inputClass =
     "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted/70 focus:border-brand";
 
-  const options = [
-    { value: "public", label: "Everyone", hint: "All users", Icon: Globe },
-    { value: "restricted", label: "Selected departments", hint: "Choose below", Icon: Lock },
-  ] as const;
-
   return (
     <form
       onSubmit={handleSubmit}
       noValidate
       className="grid max-w-5xl gap-6 rounded-xl border border-line bg-surface p-5 lg:grid-cols-2"
     >
-      {/* Left: the document */}
-      <div className="flex flex-col">
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          className={`flex min-h-64 flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-            dragging ? "border-brand bg-brand-soft" : errors.file ? "border-danger" : "border-line"
-          }`}
-        >
-          <input
-            ref={fileInput}
-            id="file"
-            type="file"
-            accept=".pdf,.docx,.xlsx"
-            className="sr-only"
-            onChange={(e) => pickFile(e.target.files?.[0])}
-          />
-          {file ? (
-            <div className="flex max-w-full items-center justify-center gap-3">
-              <FileText className="size-8 shrink-0 text-brand" aria-hidden="true" />
-              <div className="min-w-0 text-left">
-                <p className="truncate text-sm font-semibold">{file.name}</p>
-                <p className="text-xs text-muted">{formatSize(file.size)}</p>
-              </div>
-              <button
-                type="button"
-                aria-label="Remove file"
-                onClick={() => {
-                  setFile(null);
-                  if (fileInput.current) fileInput.current.value = "";
-                }}
-                className="rounded-md p-1.5 text-muted hover:bg-page hover:text-ink"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            </div>
-          ) : (
-            <>
-              <UploadCloud className="size-10 text-brand" aria-hidden="true" />
-              <p className="mt-3 text-sm font-semibold">Drag and drop a file here</p>
-              <p className="mt-1 text-xs text-muted">
-                or{" "}
+      {/* Left: the file, and who can see it */}
+      <div className="space-y-4">
+        <div>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            className={`flex h-36 flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition-colors ${
+              dragging ? "border-brand bg-brand-soft" : errors.file ? "border-danger" : "border-line"
+            }`}
+          >
+            <input
+              ref={fileInput}
+              id="file"
+              type="file"
+              accept=".pdf,.docx,.xlsx"
+              className="sr-only"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+            {file ? (
+              <div className="flex max-w-full items-center justify-center gap-3">
+                <FileText className="size-8 shrink-0 text-brand" aria-hidden="true" />
+                <div className="min-w-0 text-left">
+                  <p className="truncate text-sm font-semibold">{file.name}</p>
+                  <p className="text-xs text-muted">{formatSize(file.size)}</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => fileInput.current?.click()}
-                  className="font-semibold text-brand hover:underline"
+                  aria-label="Remove file"
+                  onClick={() => {
+                    setFile(null);
+                    checking.current = null;
+                    setDuplicates([]);
+                    if (fileInput.current) fileInput.current.value = "";
+                  }}
+                  className="rounded-md p-1.5 text-muted hover:bg-page hover:text-ink"
                 >
-                  browse your computer
+                  <X className="size-4" aria-hidden="true" />
                 </button>
-              </p>
-              <p className="mt-3 text-xs text-muted">PDF, DOCX or XLSX, up to 10 MB</p>
-            </>
+              </div>
+            ) : (
+              <>
+                <UploadCloud className="size-8 text-brand" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold">Drag and drop a file here</p>
+                <p className="mt-1 text-xs text-muted">
+                  or{" "}
+                  <button
+                    type="button"
+                    onClick={() => fileInput.current?.click()}
+                    className="font-semibold text-brand hover:underline"
+                  >
+                    browse your computer
+                  </button>
+                </p>
+                <p className="mt-2 text-xs text-muted">PDF, DOCX or XLSX, up to 10 MB</p>
+              </>
+            )}
+          </div>
+          {errors.file && (
+            <p role="alert" className="mt-2 text-sm text-danger">
+              {errors.file}
+            </p>
+          )}
+          {duplicates.length > 0 && (
+            <p role="status" className="mt-2 flex items-start gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">
+              <Copy className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                <span className="font-semibold">Already uploaded as </span>
+                {duplicates.map((match, i) => (
+                  <span key={match.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/documents/${match.id}`} className="font-semibold underline">
+                      {match.title}
+                    </Link>
+                  </span>
+                ))}
+                . To update it, add a new version there instead.
+              </span>
+            </p>
           )}
         </div>
-        {errors.file && (
-          <p role="alert" className="mt-2 text-sm text-danger">
-            {errors.file}
-          </p>
-        )}
+
+        <VisibilityPicker
+          visibility={visibility}
+          onVisibilityChange={setVisibility}
+          departmentIds={departmentIds}
+          onToggleDepartment={toggleDepartment}
+          departments={departments}
+          departmentsError={departmentsError}
+          error={errors.departments}
+          showAudience
+        />
       </div>
 
       {/* Right: the details */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div>
           <label htmlFor="title" className="mb-1.5 block text-sm font-semibold">
             Title <span className="text-danger">*</span>
@@ -245,80 +290,14 @@ export function UploadForm() {
           <p className="mt-1 text-xs text-muted">Separate tags with commas. Up to 10.</p>
         </div>
 
-        <fieldset>
-          <legend className="mb-1.5 text-sm font-semibold">Who can see it?</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {options.map(({ value, label, hint, Icon }) => (
-              <label
-                key={value}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors ${
-                  visibility === value ? "border-brand bg-brand-soft" : "border-line hover:bg-page"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="visibility"
-                  value={value}
-                  checked={visibility === value}
-                  onChange={() => setVisibility(value)}
-                  className="accent-[#0f6b57]"
-                />
-                <Icon className="size-4 shrink-0 text-brand" aria-hidden="true" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold leading-tight">{label}</span>
-                  <span className="block text-xs text-muted">{hint}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-
-          {visibility === "restricted" && (
-            <div className="mt-2 rounded-lg border border-line p-3">
-              {departmentsError ? (
-                <p role="alert" className="text-sm text-danger">
-                  {departmentsError}
-                </p>
-              ) : !departments ? (
-                <p className="text-sm text-muted">Loading departments…</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {departments.map((dep) => (
-                    <label
-                      key={dep.id}
-                      className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${
-                        departmentIds.includes(dep.id)
-                          ? "border-brand bg-brand-soft text-brand"
-                          : "border-line text-muted hover:bg-page"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={departmentIds.includes(dep.id)}
-                        onChange={() => toggleDepartment(dep.id)}
-                        className="accent-[#0f6b57]"
-                      />
-                      {dep.name}
-                    </label>
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 text-xs text-muted">You and admins can always see it.</p>
-              {errors.departments && (
-                <p role="alert" className="mt-1 text-sm text-danger">
-                  {errors.departments}
-                </p>
-              )}
-            </div>
-          )}
-        </fieldset>
-
         {formError && (
           <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
             {formError}
           </p>
         )}
 
-        <Button type="submit" fullWidth disabled={submitting} className="py-2.5">
+        {/* mt-auto keeps the button at the bottom, level with the end of the left column */}
+        <Button type="submit" fullWidth disabled={submitting} className="mt-auto py-2.5">
           {submitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
           {submitting ? "Uploading…" : "Upload document"}
         </Button>

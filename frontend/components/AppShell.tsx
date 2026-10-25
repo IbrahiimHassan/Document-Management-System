@@ -3,13 +3,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, FolderOpen, LogOut, UploadCloud } from "lucide-react";
+import { FileText, FolderOpen, LogOut, Trash2, UploadCloud } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "./Button";
 
 const links = [
-  { href: "/", label: "Documents", icon: FolderOpen },
-  { href: "/upload", label: "Upload", icon: UploadCloud },
+  { href: "/", label: "Documents", icon: FolderOpen, adminOnly: false },
+  { href: "/upload", label: "Upload", icon: UploadCloud, adminOnly: false },
+  { href: "/deleted", label: "Deleted", icon: Trash2, adminOnly: true },
 ];
 
 function initials(name: string): string {
@@ -57,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col md:flex-row">
         <aside className="border-b border-line bg-white/60 md:w-56 md:border-r md:border-b-0">
           <nav aria-label="Main" className="flex gap-1 p-2 md:flex-col md:p-3">
-            {links.map(({ href, label, icon: Icon }) => {
+            {links.filter((link) => !link.adminOnly || user.role === "admin").map(({ href, label, icon: Icon }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link

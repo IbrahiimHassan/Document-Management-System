@@ -52,3 +52,21 @@ export async function findById(id: string): Promise<UserRecord | null> {
   const row = result.rows[0];
   return row ? toUserRecord(row) : null;
 }
+
+// How many people could open a document with these settings: everyone for a
+// public one; otherwise admins, the uploader, and members of the chosen departments.
+export async function countAudience(input: {
+  uploaderId: string;
+  visibility: "public" | "restricted";
+  departmentIds: string[];
+}): Promise<number> {
+  const result =
+    input.visibility === "public"
+      ? await pool.query<{ count: string }>("SELECT count(*) FROM users")
+      : await pool.query<{ count: string }>(
+          `SELECT count(*) FROM users
+           WHERE role = 'admin' OR id = $1 OR department_id = ANY($2::uuid[])`,
+          [input.uploaderId, input.departmentIds],
+        );
+  return Number(result.rows[0]!.count);
+}

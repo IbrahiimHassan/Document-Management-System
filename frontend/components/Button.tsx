@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "secondary" | "onDark";
+type Variant = "primary" | "secondary" | "danger" | "onDark";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -10,6 +10,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variants: Record<Variant, string> = {
   primary: "bg-brand text-white hover:bg-brand-hover",
   secondary: "border border-line bg-surface text-ink hover:bg-brand-soft",
+  danger: "bg-danger text-white hover:bg-danger/90",
   onDark: "border border-white/30 text-white hover:bg-white/10",
 };
 

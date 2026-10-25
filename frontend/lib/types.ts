@@ -23,10 +23,55 @@ export interface DocumentSummary {
   sizeBytes: number;
   createdAt: string;
   updatedAt: string;
+  // Where the search words were found inside the file (null when they weren't)
+  snippet: SnippetPart[] | null;
+  // The highest version this user downloaded; lower than currentVersion means it changed since
+  lastDownloadedVersion: number | null;
+}
+
+export interface SnippetPart {
+  text: string;
+  match: boolean;
 }
 
 export interface DocumentDetail extends DocumentSummary {
   allowedDepartments: { id: string; name: string }[];
+  hasSearchableText: boolean;
+}
+
+export interface DocumentUpdate {
+  title?: string;
+  description?: string | null;
+  tags?: string[];
+  visibility?: "public" | "restricted";
+  departmentIds?: string[];
+}
+
+export type AuditAction = "view" | "preview" | "download" | "edit" | "delete" | "restore";
+
+export interface AuditEvent {
+  id: string;
+  action: AuditAction;
+  versionNumber: number | null;
+  details: { changes?: string[] } | null;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
+export interface DuplicateMatch {
+  id: string;
+  title: string;
+  versionNumber: number;
+}
+
+export interface DeletedDocument {
+  id: string;
+  title: string;
+  uploaderName: string;
+  currentVersion: number;
+  deletedAt: string;
+  deletedByName: string;
 }
 
 export interface VersionRecord {

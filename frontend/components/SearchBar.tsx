@@ -83,7 +83,7 @@ export function SearchBar({ initial, onSearch }: SearchBarProps) {
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1 sm:max-w-md">
           <label htmlFor="q" className="sr-only">
-            Search by title
+            Search titles and file contents
           </label>
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
@@ -94,7 +94,7 @@ export function SearchBar({ initial, onSearch }: SearchBarProps) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search documents by title…"
+            placeholder="Search titles and words inside files…"
             className={`${inputClass} pl-10`}
           />
         </div>

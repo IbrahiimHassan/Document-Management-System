@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { AlertCircle, ArrowLeft, Download } from "lucide-react";
-import { ApiError, downloadUrl, getDocument, getVersions } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { AlertCircle, ArrowLeft, BellRing, Download, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ApiError, downloadDocument, getDocument, getVersions } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime, formatSize } from "@/lib/format";
 import type { DocumentDetail, VersionRecord } from "@/lib/types";
+import { ActivityPanel } from "./ActivityPanel";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
+import { DeleteDocumentDialog } from "./DeleteDocumentDialog";
+import { EditDocumentDialog } from "./EditDocumentDialog";
 import { FileIcon } from "./FileIcon";
 import { NewVersionForm } from "./NewVersionForm";
 import { StatusScreen } from "./StatusScreen";
@@ -23,13 +26,52 @@ type State =
   | { status: "forbidden" }
   | { status: "error"; message: string };
 
+function DownloadButton({ doc, onDownloaded }: { doc: DocumentDetail; onDownloaded: () => void }) {
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function download() {
+    setDownloading(true);
+    setError(null);
+    try {
+      await downloadDocument(doc.id, doc.originalName);
+      onDownloaded();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The download failed. Try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button fullWidth onClick={() => void download()} disabled={downloading}>
+        {downloading ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Download className="size-4" aria-hidden="true" />
+        )}
+        {downloading ? "Downloading…" : `Download v${doc.currentVersion}`}
+      </Button>
+      {error && (
+        <p role="alert" className="flex items-start gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function DocumentDetailView() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const router = useRouter();
   const { user } = useAuth();
 
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +139,9 @@ export function DocumentDetailView() {
   }
 
   const { doc, versions } = state;
-  const canAddVersion = user.role === "admin" || user.id === doc.uploaderId;
+  const canManage = user.role === "admin" || user.id === doc.uploaderId;
+  const changedSinceDownload =
+    doc.lastDownloadedVersion !== null && doc.lastDownloadedVersion < doc.currentVersion;
 
   const details: { label: string; value: React.ReactNode }[] = [
     { label: "Uploaded by", value: doc.uploaderName },
@@ -126,25 +170,53 @@ export function DocumentDetailView() {
         Back to documents
       </Link>
 
-      <section className="flex items-start gap-4 rounded-xl border border-line bg-surface p-5">
-        <FileIcon mimeType={doc.mimeType} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl font-bold tracking-tight">{doc.title}</h1>
-            <Badge visibility={doc.visibility} />
-          </div>
-          {doc.description && <p className="mt-1 text-sm text-muted">{doc.description}</p>}
-          <div className="mt-3">
-            <TagChips tags={doc.tags} />
+      <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5 sm:flex-row sm:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <FileIcon mimeType={doc.mimeType} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-xl font-bold tracking-tight">{doc.title}</h1>
+              <Badge visibility={doc.visibility} />
+            </div>
+            {doc.description && <p className="mt-1 text-sm text-muted">{doc.description}</p>}
+            <div className="mt-3">
+              <TagChips tags={doc.tags} />
+            </div>
           </div>
         </div>
+        {canManage && (
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={() => setDialog("edit")}>
+              <Pencil className="size-4" aria-hidden="true" />
+              Edit
+            </Button>
+            <Button variant="secondary" onClick={() => setDialog("delete")} className="text-danger">
+              <Trash2 className="size-4" aria-hidden="true" />
+              Delete
+            </Button>
+          </div>
+        )}
       </section>
 
+      {changedSinceDownload && (
+        <p role="status" className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
+          <BellRing className="size-4 shrink-0" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Updated since your download.</span> You downloaded v
+            {doc.lastDownloadedVersion}; the current version is v{doc.currentVersion}.
+          </span>
+        </p>
+      )}
+
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section className="min-w-0 rounded-xl border border-line bg-surface">
-          <h2 className="border-b border-line px-4 py-3 font-semibold">Version history</h2>
-          <VersionTable versions={versions} />
-        </section>
+        <div className="min-w-0 space-y-5">
+          <section className="rounded-xl border border-line bg-surface">
+            <h2 className="border-b border-line px-4 py-3 font-semibold">Version history</h2>
+            <VersionTable documentId={doc.id} versions={versions} />
+          </section>
+
+          {canManage && <ActivityPanel documentId={doc.id} refreshKey={attempt} />}
+        </div>
 
         <aside className="space-y-5 rounded-xl border border-line bg-surface p-4">
           <div>
@@ -159,16 +231,11 @@ export function DocumentDetailView() {
             </dl>
           </div>
 
-          <a
-            href={downloadUrl(doc.id)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            Download current version
-          </a>
+          {/* Reloading after a download clears the "updated since" banner and refreshes the activity */}
+          <DownloadButton doc={doc} onDownloaded={reload} />
 
           <div className="border-t border-line pt-5">
-            {canAddVersion ? (
+            {canManage ? (
               <NewVersionForm documentId={doc.id} onUploaded={reload} />
             ) : (
               <p className="text-sm text-muted">
@@ -178,6 +245,27 @@ export function DocumentDetailView() {
           </div>
         </aside>
       </div>
+
+      {canManage && (
+        <>
+          <EditDocumentDialog
+            doc={doc}
+            open={dialog === "edit"}
+            onClose={() => setDialog(null)}
+            onSaved={() => {
+              setDialog(null);
+              reload();
+            }}
+          />
+          <DeleteDocumentDialog
+            documentId={doc.id}
+            title={doc.title}
+            open={dialog === "delete"}
+            onClose={() => setDialog(null)}
+            onDeleted={() => router.push("/")}
+          />
+        </>
+      )}
     </div>
   );
 }

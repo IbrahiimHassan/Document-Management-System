@@ -31,6 +31,18 @@ const envSchema = z.object({
     .optional()
     .transform((value) => (value ? value : undefined))
     .pipe(z.url("REDIS_URL must be a URL like redis://localhost:6379").optional()),
+
+  // Optional: the ClamAV daemon that scans every upload. Without it uploads
+  // are not scanned (fine for development). With it, an upload is refused
+  // when the scanner can't be reached.
+  CLAMAV_HOST: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
 });
 
 const result = envSchema.safeParse(process.env);

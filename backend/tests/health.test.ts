@@ -22,6 +22,8 @@ describe("health and error shape", () => {
       service: "document-repository-api",
       database: "connected",
       cache: "connected",
+      // .env.test has no CLAMAV_HOST; the virus tests start their own fake scanner
+      virusScanner: "disabled",
     });
   });
 

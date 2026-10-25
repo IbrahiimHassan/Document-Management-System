@@ -39,6 +39,30 @@ export class PayloadTooLargeError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message = "This conflicts with the current state") {
+    super(409, "CONFLICT", message);
+  }
+}
+
+export class VirusDetectedError extends AppError {
+  constructor(message = "The file contains malware and was not saved") {
+    super(422, "VIRUS_DETECTED", message);
+  }
+}
+
+export class PreviewFailedError extends AppError {
+  constructor(message = "This file can't be previewed. Download it to open it.") {
+    super(422, "PREVIEW_FAILED", message);
+  }
+}
+
+export class ScannerUnavailableError extends AppError {
+  constructor(message = "The virus scanner is not available right now. Try again in a minute.") {
+    super(503, "SCANNER_UNAVAILABLE", message);
+  }
+}
+
 export class UnsupportedMediaTypeError extends AppError {
   constructor(message = "File type is not allowed") {
     super(415, "UNSUPPORTED_FILE_TYPE", message);

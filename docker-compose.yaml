@@ -30,9 +30,27 @@ services:
       timeout: 3s
       retries: 5
 
-  # The two services below run only with: docker compose --profile app up -d --build
+  # The services below run only with: docker compose --profile app up -d --build
   # Without the profile, "docker compose up -d" starts just the database and Redis
   # for local development with npm run dev.
+
+  # Virus scanner for uploads. On the first start it downloads the virus
+  # signatures (about 300 MB, kept in a volume) and needs a few minutes before
+  # it answers; until then uploads are refused with "try again in a minute".
+  # Needs about 1.5 GB of memory.
+  clamav:
+    profiles: ["app"]
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 6m
+
   backend:
     profiles: ["app"]
     build: ./backend
@@ -48,6 +66,8 @@ services:
       # Served over plain http on localhost, so the cookie cannot be Secure
       COOKIE_SECURE: "false"
       SEED_DEMO_DATA: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -55,6 +75,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # Started, not healthy: browsing and search work while signatures load
+      clamav:
+        condition: service_started
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
@@ -78,3 +101,4 @@ services:
 volumes:
   postgres_data:
   uploads_data:
+  clamav_data:

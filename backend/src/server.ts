@@ -3,6 +3,7 @@ import app from "./app.js";
 import { env } from "./config/env.js";
 import { pool } from "./config/database.js";
 import * as cache from "./cache/cache.js";
+import * as virusScanner from "./files/virusScanner.js";
 
 async function bootstrap(): Promise<void> {
   try {
@@ -11,6 +12,7 @@ async function bootstrap(): Promise<void> {
 
     await cache.ready();
     console.log(`Cache: ${cache.status()}`);
+    console.log(`Virus scanner: ${await virusScanner.status()}`);
 
     const server = app.listen(env.PORT, () => {
       console.log(
