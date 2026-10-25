@@ -239,8 +239,8 @@ sequenceDiagram
 | `404` | Unknown, hidden or deleted |
 | `409` | New version identical to the current one |
 | `413` | Too large |
-| `415` | Wrong file type (or a preview of a non-PDF) |
-| `422` | Malware found |
+| `415` | Wrong file type |
+| `422` | Malware found, or a file too damaged to preview |
 | `429` | Too many failed logins |
 | `503` | Virus scanner unreachable |
 
