@@ -1,6 +1,5 @@
 # Document Management System
 
-![CI](https://github.com/IbrahiimHassan/Document-Management-System/actions/workflows/ci.yml/badge.svg)
 
 A document repository where employees upload, version, search and preview company documents. Each document is visible either to everyone or only to chosen departments.
 
